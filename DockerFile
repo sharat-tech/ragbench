@@ -13,7 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY main.py
 COPY ragbench_all_dataset_with_groq_final.py
-COPY milvus_rag_bench_hagrid_docs.db
 
 # Expose the port the app runs on
 EXPOSE 8000
