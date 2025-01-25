@@ -10,6 +10,8 @@ COPY requirements.txt .
 # Install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN pip install --upgrade sentence-transformers
+
 # Copy the rest of the application code into the container
 COPY main.py .
 COPY ragbench_all_dataset_with_groq_final.py .
