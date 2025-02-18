@@ -129,35 +129,68 @@ def getEmbeddingsAndStore(ragbench):
         documents=documents,
         embedding=embedding_model,
         connection_args={
-            "uri": "/content/milvus_rag_bench_hagrid_docs.db",
+            "uri": "/content/milvus_ragbench_dataset_per_doc.db",
         },
         drop_old=False,  # Drop the old Milvus collection if it exists
     )
     print("Vector store created successfully!")
     return vectorstore
 
-def loadMilvusffromColab():
-  
-  current_directory = os.getcwd()
-  print("Current Working Directory:", current_directory)
 
-  connection_args = {
-      "uri": current_directory+"/milvus_rag_bench_hagrid_docs.db"
-  }
+def loadMilvusFromColab():
+    current_directory = os.getcwd()
+    print("Current Working Directory:", current_directory)
 
-  # Initialize the embedding model (replace OpenAIEmbeddings with the one you used)
-  embedding_model = HuggingFaceEmbeddings(model_name="BAAI/LLM-Embedder")
+    # Define paths for both vector databases
+    eightdatsets_connection_args = {"uri": current_directory + "/milvus_ragbench_dataset_per_doc.db"}
+    cuad_connection_args = {"uri": current_directory + "/ragBench_Cuad_ms_split_25_5.db"}
+    emanual_connection_args = {"uri": current_directory + "/ragBench_emanual_ms_split_25_5.db"}
+    finqa_connection_args = {"uri": current_directory + "/ragBench_finqa_ms_split_30_8.db"}
 
-  # Load the vector store
-  vectorstore = Milvus(
-      embedding_function=embedding_model,
-      connection_args=connection_args
-  )
+    # Initialize the embedding model
+    embedding_model = HuggingFaceEmbeddings(model_name="BAAI/LLM-Embedder")
 
-  # Now `vectorstore` is loaded and can be used for search or other operations
-  print("Vector store loaded from colab successfully!")
+    index_params = {
+          "metric_type": "L2",  # Metric for similarity, use "IP" for inner product if needed
+          "index_type": "IVF_FLAT",  # Index type (supported in local mode: FLAT, IVF_FLAT, AUTOINDEX)
+          "params": {"nlist": 128},  # Parameter specific to the chosen index type
+      }
 
-  return vectorstore;
+    # Load the Eight Dataset vector store
+    eightDataset_vectorstore = Milvus(
+        embedding_function=embedding_model,
+        connection_args=eightdatsets_connection_args,
+        index_params=index_params,  # Add index parameters here
+    )
+    print("HAGRIDQA vector store loaded successfully!")
+
+    # Load the CUAD vector store
+    cuad_vectorstore = Milvus(
+        embedding_function=embedding_model,
+        connection_args=cuad_connection_args,
+        index_params=index_params,  # Add index parameters here
+    )
+    print("CUAD vector store loaded successfully!")
+
+        # Load the Emanual vector store
+    emanual_vectorstore = Milvus(
+        embedding_function=embedding_model,
+        connection_args=emanual_connection_args,
+        index_params=index_params,  # Add index parameters here
+    )
+    print("Emanual vector store loaded successfully!")
+
+ 
+            # Load the Emanual vector store
+    finqa_vectorstore = Milvus(
+        embedding_function=embedding_model,
+        connection_args=finqa_connection_args,
+        index_params=index_params,  # Add index parameters here
+    )
+    print("Fin QA vector store loaded successfully!")
+
+    # Return both vector stores
+    return eightDataset_vectorstore, cuad_vectorstore , emanual_vectorstore, finqa_vectorstore
 
 
 
@@ -173,105 +206,54 @@ def remove_duplicates(relevant_docs):
     return new_relevant_docs
 
 # Step 3: Define the Query and Retrieval Function
-def retrieve_top_k(query, vectorstore, top_k):
+def retrieve_top_k(query, vectorstore, top_k,datasetName):
     """
     Retrieve the top-k relevant documents using Milvus and the MMR retriever.
     """
-    #retriever = vectorstore.as_retriever(
-    #search_type="mmr",
-    #search_kwargs={"k": 10, "lambda_mult": 0.3}  # Adjust `lambda_mult` for relevance-diversity balance
-    #)
-    #retrieved_docs = retriever.get_top_k_docs(query, k=10)
-    # Combine results from both retrievers
-    # retriever_sparse = vectorstore.as_retriever(search_type="mmr")
-    # retriever_dense = vectorstore.as_retriever(search_type="similarity")
-    # sparse_results = retriever_sparse.get_top_k_docs(query,10)
-    # dense_results = retriever_dense.get_top_k_docs(query,10)
 
-    # Merge results, prioritize removing duplicates
-    #relevant_docs = remove_duplicates(sparse_results + dense_results)
-    #retrieved_docs = remove_duplicates(retrieved_docs)
-    #retriever = vectorstore.as_retriever()
-    #retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": top_k, "fetch_k": 8})
-    #retriever = vectorstore.as_retriever()
-    retriever = vectorstore.as_retriever(search_type="mmr")
-    # retriever = vectorstore.as_retriever(
-    #     search_type="similarity",
-    #     search_kwargs={
-    #         "k": top_k,
-    #         "score_threshold": 0.5,  # Adjust this threshold based on your needs
-    #         "fetch_k": top_k * 4  # Fetch more candidates for better diversity
-    #     }
-    # )
-    #relevant_docs = retriever.get_relevant_documents(query)
+    if datasetName == "cuad":
+        top_k = 2
+        retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k":top_k, "fetch_k": 8})
+    else:
+        retriever = vectorstore.as_retriever(search_type="mmr")
+    
     relevant_docs = retriever.invoke(query)
     relevant_docs = remove_duplicates(relevant_docs)
-    #print("Relevant Docs: ",relevant_docs)
-    # Return only the top_k documents or all available if less than k
-    #relevant_docs =  relevant_docs[:top_k] if len(relevant_docs) > top_k else relevant_docs
+  
     print("relevant_docs Documents Counts:",len(relevant_docs))
     #enable it back print("relevant_docs Documents: ",relevant_docs)
     return relevant_docs
 
 model_name = "castorini/monot5-base-msmarco"
-#model_name = "t5-small"
-#model_name = "t5-large"
+
 tokenizer = T5Tokenizer.from_pretrained(model_name,legacy=False)
 t5Model = T5ForConditionalGeneration.from_pretrained(model_name)
 
-# def reranking(query,retrieved_docs, datasetName):
-# # Prepare inputs for reranking
-#   # reranking_inputs = [
-#   #     f"Query: {query} Document: {doc} Relevant:"
-#   #     for doc in retrieved_docs
-#   # ]
-#   reRankingInputs = "\n".join([doc.page_content for doc in retrieved_docs])
-#   reRankingsentencesIP = sent_tokenize(reRankingInputs)
-#   print("No.of sentences before reranking: ", len(reRankingsentencesIP))
+def chunk_text(text, num_of_sentences):
+    # Tokenize the text into sentences
+    sentences = sent_tokenize(text)
 
-#   if datasetName!="testcuad" and datasetName!="testdelucionqa":
-#       reranking_inputs = [
-#        f"Query: {query} Document: {sentence} Relevant:"
-#        for sentence in reRankingsentencesIP]
-#       # Tokenize and generate scores
-#         # Load monoT5 model and tokenizer
-#       #model_name = "castorini/monot5-base-msmarco"
-#       #tokenizer = T5Tokenizer.from_pretrained(model_name)
-#       #t5Model = T5ForConditionalGeneration.from_pretrained(model_name)
-#       inputs = tokenizer(reranking_inputs, return_tensors="pt", padding=True, truncation=True)
-#       print("Inputs: ",inputs)
+    # Group sentences into chunks
+    chunks = [' '.join(sentences[i:i + num_of_sentences]) for i in range(0, len(sentences), num_of_sentences)]
 
-#       outputs = t5Model.generate(**inputs, max_length=2)
-#       print("Outputs: ",outputs)
-#       # Modify this line to handle "true" and "false"
-#       scores = [
-#           1 if tokenizer.decode(output, skip_special_tokens=True).lower() == "true" else 0
-#           for output in outputs
-#       ]
-
-#       # Sort documents by relevance scores
-#       # get only retrieved_docs whos score is 1
-#       reranked_docs = [doc for doc, score in zip(reRankingsentencesIP, scores) if score == 1]
-#       #print("Reranked Documents:", reranked_docs)
-#       #reranked_docs = sorted(zip(retrieved_docs, scores), key=lambda x: x[1], reverse=True)
-#       #print("Reranked Documents length:", len(reranked_docs))
-#       if len(reranked_docs) == 0:
-#         reranked_docs = reRankingsentencesIP
-#   else:
-#     reranked_docs = reRankingsentencesIP
-#   print("No.of sentences after reranking : ", len(reranked_docs))
-#   #Enable it back print("Reranked sentences:", reranked_docs)
-#   #print("Retrieved_docs Documents:", retrieved_docs)
-#   return reranked_docs
+    return chunks
 
 def reranking(query, retrieved_docs, datasetName, batch_size=50):
     # Combine the content of retrieved docs and split into sentences
+    reRankingsentencesIP = []
     reRankingInputs = "\n".join([doc.page_content for doc in retrieved_docs])
-    reRankingsentencesIP = sent_tokenize(reRankingInputs)
+
+   
+    if datasetName == "emanual" or datasetName == "finqa" or datasetName == "cuad":
+        for doc in retrieved_docs:
+            reRankingsentencesIP.append(doc.page_content)
+    else:
+        reRankingsentencesIP = sent_tokenize(reRankingInputs)
+  
     print("No. of sentences before reranking: ", len(reRankingsentencesIP))
 
     # If datasetName does not match specific conditions, perform reranking
-    if datasetName not in ["testcuad", "testdelucionqa"]:
+    if datasetName not in ["emanual","finqa"]:
         # Prepare inputs for reranking
         reranking_inputs = [
             f"Query: {query} Document: {sentence} Relevant:"
@@ -318,6 +300,7 @@ def reranking(query, retrieved_docs, datasetName, batch_size=50):
     return reranked_docs
 
 ## New prompt andwhich does not require post processing
+
 def createPrompt(context, question):
     prompt = f'''You are tasked with reviewing the provided context and answering the question strictly in a JSON format.
     You MUST output only a valid JSON object. **Do not include any introductory text**.
@@ -420,10 +403,133 @@ def createPrompt(context, question):
     2. **Do not add any explanations, formatting, or extra text before or after the JSON.**
     3. The output must **strictly** start with `{{` and end with `}}`.
     4. If you output anything other than a valid JSON object, the response is invalid.
+    5. If the question required calculation, do calculation and provide answer is response.
 
     Begin your response with `{{` and output **only the JSON object**.
     '''
     return prompt
+
+## New prompt andwhich does not require post processing
+def createPromptForFinQA(context, question):
+    prompt = f'''You are tasked with reviewing the provided context and answering the question strictly in a JSON format.
+    You MUST output only a valid JSON object. **Do not include any introductory text**.
+    **Start directly with the opening curly bracket {{ and end with the closing curly bracket }}**.
+    If you output anything other than valid JSON, the output is invalid.
+    You are an expert financial analyst. Given a financial question and relevant context, your task is to extract the necessary numerical data, perform precise step-by-step calculations, and provide a well-reasoned final answer.
+    Guidelines:
+    Extract: Identify all relevant numbers and equations from the provided context.
+    Calculate: Show step-by-step computations, ensuring accuracy in arithmetic operations.
+    Explain: Provide a brief explanation for each step to enhance clarity.
+    Verify: Cross-check the results to confirm correctness before finalizing the answer.
+
+    Context (with sentence keys):
+    {context}
+
+    Question:
+    {question}
+
+    Provide your response following this exact JSON schema:
+
+    Provide a JSON object with an answer , relevance_explanation, all_relevant_sentence_keys, overall_supported_explanation, overall_supported, sentence_support_information(this can be a json inside a json and with these fields response_sentence_key, explanation, supporting_sentence_keys, fully_supported) and all_utilized_sentence_keys below are the definitions
+
+
+    {{
+      "answer": "string",
+      "relevance_explanation": "string",
+      "all_relevant_sentence_keys": ["string"],
+      "overall_supported_explanation": "string",
+      "overall_supported": "boolean",
+      "sentence_support_information": [
+        {{
+          "response_sentence_key": "string",
+          "explanation": "string",
+          "supporting_sentence_keys": ["string"],
+          "fully_supported": "boolean"
+        }},
+      ],
+      "all_utilized_sentence_keys": ["string"]
+    }}
+
+
+    ### Example:
+    If the documents were:
+    "All patients had their HAdV-55 infection confirmed by RT-PCR assay. Partial sequences of the hexon gene were analyzed to type the phylogeny of HAdV-55 strains. The adenoviral loadPatients' specimens, including sputum, whole blood and serum samples, were collected upon admission and during hospitalization. Microbiological tests were performed at the Department of Infectious Disease and Clinical Microbiology in our center, and the detection methods used were described in our previous report . Common viruses causing respiratory illness were screened using a kit with 15 different viral assays. Serum samples were used for Mycoplasma pneumoniae, Chlamydia pneumoniae and Legionella pneumophila antibodies. All patients had their HAdV-55 infection confirmed by RT-PCR assay. Partial sequences of the hexon gene were analyzed to type the phylogeny of HAdV-55 strains. The adenoviral loadAll patients had HAdV-55 viremia. In four of the five patients, it was first detected in endotracheal aspirate samples. The time between initial ETA sample collection of adenoviruses and positive results for HAdV-55 nucleic acid in the blood was 1 to 10 days . Virus DNA copies in ETAs were determined for all patients during their ICU stay. The viral load was higher than 1 × 10 8 copies in three patients and 1 × 10 4 in one patient. The viral load became negative in the only patient who survived. In the four patients who did not survive, DNAAll patients had HAdV-55 viremia. In four of the five patients, it was first detected in endotracheal aspirate samples. The time between initial ETA sample collection of adenoviruses and positive results for HAdV-55 nucleic acid in the blood was 1 to 10 days . Virus DNA copies in ETAs were determined for all patients during their ICU stay. The viral load was higher than 1 × 10 8 copies in three patients and 1 × 10 4 in one patient. The viral load became negative in the only patient who survived. In the four patients who did not survive, DNAThe cells were harvested and processed for the detection of Egr-1 phosphorylation through immunoprecipitation and immunoblotting. d. 10 ×10 6 BCBL-1 cells were induced with TPA for 24h. The cells were harvested and processed for the detection of Egr-1 phosphorylation through immunoprecipitation and immunoblotting.Of particular interest, EGR1 directly controls proliferation when activated by the mitogen-activated protein kinase/extracellular signal-regulated kinase pathway in mitogen-stimulated astrocytes .."
+    And the question was:
+    "What role does T-cell count play in severe human adenovirus type 55 (HAdV-55) infection?"
+    And the answer was:
+    "T-cell count plays a significant role in determining the severity of human adenovirus type 55 (HAdV-55) infection. Lower T-cell counts may indicate immunocompromise, which can increase the risk of severe disease. In the study, the only patient who recovered from a severe HAdV-55 infection had higher T-cell counts, while three of the five patients admitted had relatively low T-cell counts and may have been immunocompromised."
+
+    The output should look like this:
+    {{
+    "answer": "T-cell count plays a significant role in determining the severity of human adenovirus type 55 (HAdV-55) infection. Lower T-cell counts may indicate immunocompromise, which can increase the risk of severe disease. In the study, the only patient who recovered from a severe HAdV-55 infection had higher T-cell counts, while three of the five patients admitted had relatively low T-cell counts and may have been immunocompromised.",
+    "relevance_explanation": "The documents provide information on the relationship between T-cell counts and the severity of HAdV-55 infections. They highlight that lower T-cell counts may be associated with severe disease and that the only recovered patient had higher T-cell counts. This information is crucial for understanding the role of T-cell counts in HAdV-55 infection.",
+    "all_relevant_sentence_keys": ["1a", "2b", "3c", "4d", "5e", "6f", "7g", "8h", "9i", "10j"],
+    "overall_supported_explanation": "The response outlines that T-cell count is significant for the severity of HAdV-55 infection. This claim is supported by sentence '0a', which states that the only patient who recovered had higher T-cell counts. Sentence '0b' further supports this by indicating that three patients had low T-cell counts and suggests that they were relatively immunocompromised. Sentence '0c' emphasizes the importance of the immune system in virus clearance and host survival, reinforcing the significance of T-cell counts. Sentence '0d' adds that lower T-cell counts may increase the risk of severe disease, aligning with the response. Therefore, all claims made in the response are supported by the mentioned sentences.",
+    "overall_supported": true,
+    "sentence_support_information": [
+      {{
+        "response_sentence_key": "1",
+        "explanation": "This sentence is supported by the documents, specifically indicating the relationship between T-cell counts and recovery from severe HAdV-55 infection.",
+        "supporting_sentence_keys": ["1a", "3c", "6f", "7g"],
+        "fully_supported": true
+      }},
+      {{
+        "response_sentence_key": "2",
+        "explanation": "This sentence accurately reflects the findings regarding the immunocompromised state of patients with lower T-cell counts, supported by the documents.",
+        "supporting_sentence_keys": ["4d"],
+        "fully_supported": true
+      }}
+    ],
+    "all_utilized_sentence_keys": ["1a", "3c", "4d", "6f", "7g"]
+    }}
+
+    The answer field is a string explaining the answering the question. Provide a clear explanation in detail on how the answer is derived from the documents.
+
+    The relevance_explanation field is a string explaining which documents contain useful information for answering the question. Provide a step-by-step breakdown of information provided in the documents and how it is useful for answering the question.
+
+    The all_relevant_sentence_keys field is a list of all document sentences keys (e.g. ’1a’,’2b’) that are revant to the question. Include every sentence that is useful and relevant to the question, even if it was not used in the response, or if only parts of the sentence are useful. Ignore the provided response when making this judgement and base your judgement solely on the provided documents and question. Omit sentences that, if removed from the document, would not impact someone’s ability to answer the question.
+
+    The overall_supported_explanation field is a string explaining why the response *as a whole* is or is not supported by the documents. In this field, provide a step-by-step breakdown of the claims made in the response and the support (or lack thereof) for those claims in the documents. Begin by assessing each claim separately, one by one; don’t make any remarks about the response as a whole until you have assessed all the claims in isolation.
+
+    The overall_supported field is a boolean indicating whether the response as a whole is supported by the documents. This value should reflect the conclusion you drew at the end of your step-by-step breakdown in overall_supported_explanation.
+
+    In the sentence_support_information field, provide information about the support *for each sentence* in the response.
+
+    The sentence_support_information field is a list of objects, one for each sentence in the response. Each object MUST have the following fields:
+    - response_sentence_key: a string identifying the sentence in the response.This key is the same as the one used in the response above.
+
+
+    explanation: a string explaining why the sentence is or is not supported by the documents.
+
+    - supporting_sentence_keys: keys (e.g. ’1a’,’2b’) of sentences from the documents that support the response sentence. If the sentence is not supported, this list MUST be empty. If the sentence is supported, this list MUST contain one or more keys.
+    In special cases where the sentence is supported, but not by any specific sentence, you can use the string "supported_without_sentence" to indicate that the sentence is generally supported by the documents. Consider cases where the sentence is expressing inability to answer the question due to lack of relevant information in the provided contex as "supported_without_sentence". In cases where the sentence is making a general statement (e.g. outlining the steps to produce an answer, or summarizing previously stated sentences, or a transition sentence), use the sting "general".
+
+    In cases where the sentence is correctly stating a well-known fact, like a mathematical formula, use the string "well_known_fact". In cases where the sentence is performing numerical reasoning (e.g. addition, multiplication), use the string "numerical_reasoning".
+    - fully_supported: a boolean indicating whether the sentence is fully supported by the documents.
+    - This value should reflect the conclusion you drew at the end of your step-by-step breakdown in explanation.
+    - If supporting_sentence_keys is an empty list, then fully_supported must be false.
+
+    - Otherwise, use fully_supported to clarify whether everything in the response sentence is fully supported by the document text indicated in supporting_sentence_keys (fully_supported = true), or whether the sentence is only partially or incompletely supported by that document text (fully_supported = false).
+
+    The all_utilized_sentence_keys field is a list of all sentences keys (e.g. ’1a’) that were used to construct the answer. Include every sentence that either directly supported the answer, or was implicitly used to construct the answer, even if it was not used in its entirety. Omit sentences that were not used, and could have been removed from the documents without affecting the answer.
+
+    ### Important Rules:
+    1. **Do not include any introductory phrases or text** like "Here is the response", "Response:", or "The answer is".
+    2. **Do not add any explanations, formatting, or extra text before or after the JSON.**
+    3. The output must **strictly** start with `{{` and end with `}}`.
+    4. If you output anything other than a valid JSON object, the response is invalid.
+    5. You are an expert financial analyst. Given a financial question and relevant context, your task is to extract the necessary numerical data, perform precise step-by-step calculations, and provide a well-reasoned final answer.
+      Guidelines:
+      Extract: Identify all relevant numbers and equations from the provided context.
+      Calculate: Show step-by-step computations, ensuring accuracy in arithmetic operations.
+      Explain: Provide a brief explanation for each step to enhance clarity.
+      Verify: Cross-check the results to confirm correctness before finalizing the answer.
+
+    Begin your response with `{{` and output **only the JSON object**.
+    '''
+    return prompt
+
+
 # Attributes provided in the tas
 def getGeneratedvalues(length_context_docs,responseObj):
 
@@ -529,12 +635,20 @@ def build_context_from_sentencesList(query,sentencesList):
     print("Total Sentences: ",sentence_counter)
     return context,sentence_counter
 
-def getResponseForQuestion(datasetName,questionIndex,vectorstore, top_k):
+def getResponseForQuestion(datasetName,questionIndex, top_k):
 
     question = ragbench_all[datasetName]['train'][questionIndex]['question']
-    #print("Question: ",question)
+    print("#####datasetName: ",datasetName)
+    if datasetName == "cuad":
+        vectorstore = cuad_store
+    elif datasetName == "emanual":
+        vectorstore = emanual_store
+    elif datasetName == "finqa":
+        vectorstore = finqa_vectorstore
+    else:
+        vectorstore = eightdatasetstore
 
-    top_k_docs = retrieve_top_k(question,vectorstore,top_k)
+    top_k_docs = retrieve_top_k(question,vectorstore,top_k,datasetName)
     #newchange
     rerankingdocs = reranking(question,top_k_docs,datasetName)
     #print("Reranking docs: ",rerankingdocs)
@@ -552,13 +666,17 @@ def getResponseForQuestion(datasetName,questionIndex,vectorstore, top_k):
 
 
     #total_sentences = sum(len(sentences) for sentences in context.values())
+    if datasetName == "finqa":
+        prompt = createPromptForFinQA(context, question)
+    else:   
+        prompt = createPrompt(context, question)
 
     chat_completion = client.chat.completions.create(
 
         messages=[
             {
                 "role": "system",
-                "content": createPrompt(context, question),
+                "content": prompt,
             }
         ],
         model="llama3-70b-8192",
@@ -593,12 +711,13 @@ def getRandomeQuestion(datasetList):
     return datasetName,questionIndex
 
 #initialize the dataset
-datasetList = ['hagrid']
+#datasetList = ['hagrid']
+datasetList = ['covidqa', 'cuad', 'delucionqa', 'emanual', 'expertqa', 'finqa', 'hagrid', 'hotpotqa', 'msmarco', 'pubmedqa', 'tatqa', 'techqa']
 ragbench_all = getDataSet()
-vectorstore = loadMilvusffromColab()
+eightdatasetstore, cuad_store, emanual_store , finqa_vectorstore = loadMilvusFromColab()
 displayData(ragbench_all)
 
-openai_api_key = "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"
+openai_api_key = ""
 # initialize client for Groq
 client = Groq(api_key = openai_api_key)
 

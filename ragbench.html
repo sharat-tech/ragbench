@@ -1,163 +1,272 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatGPT-Like Interface</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      transition: background-color 0.3s ease;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ragbench</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        transition: background-color 0.3s ease;
+      }
 
-    aside {
-      background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
-      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-      transition: transform 0.3s ease;
-    }
+      aside {
+        background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+      }
 
-    aside:hover {
-      transform: scale(1.02);
-    }
+      aside:hover {
+        transform: scale(1.02);
+      }
 
-    #send-button:hover, #button-only:hover {
-      transform: translateY(-2px);
-      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
-      transition: all 0.3s ease;
-    }
+      #send-button:hover,
+      #button-only:hover {
+        transform: translateY(-2px);
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        background-color: #ffffff !important;
+        color: #2fbbae !important;
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+        border-color: #2fbbae;
+        border-width: 1px;
+      }
 
-    main {
-      transition: all 0.3s ease;
-    }
+      .bg-blue-5000 {
+        background-color: #2fbbae;
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+      }
 
-    main:hover {
-      box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.1);
-    }
+      .bg-blue-5000:hover {
+        background-color: #ffffff !important;
+        color: #2fbbae !important;
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+        border-color: #2fbbae;
+        border-width: 1px;
+      }
+      .bg-blue-5001 {
+        background-color: #002452;
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+      }
+      .bg-gray-3000 {
+        background-color: #f3f4f6;
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+      }
 
-    .message {
-      opacity: 0;
-      animation: fadeIn 0.5s ease forwards;
-    }
+      header {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
 
-    @keyframes fadeIn {
-      from {
+      .custom-image-size {
+        width: 100px;
+        height: 50px;
+      }
+      .bg-green-5001 {
+        background-color: #ffffff;
+        border-color: #002452;
+        border-width: 1px;
+        color: #002452 !important;
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+      }
+      .bg-green-5001:hover {
+        background-color: #002452 !important;
+        color: #ffffff !important;
+        border-radius: 0.1rem !important;
+      }
+
+      #dropdown {
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+      }
+      #input-box {
+        font-family: "Montserrat", Sans-serif !important;
+        border-radius: 0.1rem !important;
+      }
+   
+
+      main {
+        transition: all 0.3s ease;
+      }
+
+      main:hover {
+        box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .message {
         opacity: 0;
+        animation: fadeIn 0.5s ease forwards;
       }
-      to {
-        opacity: 1;
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
       }
-    }
-  </style>
-</head>
-<body class="bg-gray-100 h-screen flex">
-  <aside class="w-1/4 p-4 space-y-4">
-    <div class="space-y-4">
-      <select id="dropdown" class="border rounded-lg p-2 w-full bg-white shadow-md hover:shadow-lg">
-        <option value="hagrid">hagrid</option>
-        <option value="covidqa">covidqa</option>
-        <option value="emanual">emanual</option>
-        <option value="hotpotqa">hotpotqa</option>
-        <option value="msmarco">msmarco</option>
-        <option value="pubmedqa">pubmedqa</option>
-        <option value="expertqa">expertqa</option>
-        <option value="cuad">cuad</option>
-        <option value="delusionqa">delusionqa</option>
-        <option value="techqa">techqa</option>
-        <option value="finqa">finqa</option>
-        <option value="tatqa">tatqa</option>
-      </select>
-      <input id="input-box" type="text" class="border rounded-lg p-2 w-full bg-white shadow-md hover:shadow-lg" placeholder="Type the question number.">
-      <button id="send-button" class="bg-blue-500 text-white px-4 py-2 rounded-lg w-full hover:bg-blue-600">Send</button>
-      <button id="button-only" class="bg-green-500 text-white px-4 py-2 rounded-lg w-full hover:bg-green-600">Random Question</button>
+
+      /* Auto-grow and scrolling */
+      #chat-window {
+        max-height: calc(100vh - 130px);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        border-radius: 0.1rem !important;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 h-screen flex">
+    <aside class="w-1/4 p-4 space-y-4">
+      <div class="space-y-4">
+        <select
+          id="dropdown"
+          class="border rounded-lg p-2 w-full bg-white shadow-md hover:shadow-lg"
+        >
+          <option value="hagrid">Hagrid (1 - 2892)</option>
+          <option value="covidqa">Covid QA (1 - 1252)</option>
+          <option value="emanual">E Manual (1 - 1054)</option>
+          <option value="hotpotqa">Hotpot QA (1 - 1883)</option>
+          <option value="msmarco">MS Marco (1 - 1870)</option>
+          <option value="pubmedqa">PubMed QA (1 - 19600)</option>
+          <option value="expertqa">Expert QA (1 - 1621)</option>
+          <option value="cuad">Cuad (1 - 1530)</option>
+          <option value="delucionqa">Delucion QA (1 - 1460)</option>
+          <option value="techqa">Tech QA (1 - 1192)</option>
+          <option value="finqa">Fin QA (1 - 12502)</option>
+          <option value="tatqa">Tat QA (1 - 26430)</option>
+        </select>
+        <input
+          id="input-box"
+          type="text"
+          class="border rounded-lg p-2 w-full bg-white shadow-md hover:shadow-lg"
+          placeholder="Type the question number."
+        />
+        <button
+          id="send-button"
+          class="bg-blue-5000 text-white px-4 py-2 rounded-lg w-full hover:bg-blue-600"
+        >
+          Send
+        </button>
+        <button
+          id="button-only"
+          class="bg-green-5001 text-white px-4 py-2 rounded-lg w-full hover:bg-green-600"
+        >
+          Random Question
+        </button>
+      </div>
+    </aside>
+
+    <div class="flex-1 overflow-hidden p-4">
+      <!-- <header class="bg-blue-5001 text-white text-center py-4 text-xl font-bold mb-4 rounded-xl shadow">Ragbench Dataset</header> -->
+      <header
+        class="bg-blue-5001 text-white text-center py-4 text-xl font-bold mb-4 rounded-xl shadow flex justify-between items-center"
+      >
+        <span class="text-left">Real-world RAG System - Ragbench Dataset - Cohort 23 - Group 9</span>
+        <img
+          src="https://www.iiit.ac.in/wp-content/uploads/2022/06/IIIT_Hyderabad_Logo-e1655116937986.jpg"
+          alt="Image"
+          class="custom-image-size"
+        />
+      </header>
+      <main
+        id="chat-window"
+        class="bg-white rounded-2xl shadow-lg p-4 space-y-4 h-full"
+      >
+        <!-- Messages will be appended here -->
+      </main>
     </div>
-  </aside>
 
-  <div class="flex-1 overflow-y-auto p-4">
-    <header class="bg-blue-500 text-white text-center py-4 text-xl font-bold mb-4 rounded-xl shadow">Ragbench Dataset</header>
-    <main id="chat-window" class="bg-white rounded-2xl shadow-lg p-4 space-y-4 h-full">
-      <!-- Messages will be appended here -->
-    </main>
-  </div>
+    <script>
+      const chatWindow = document.getElementById("chat-window");
+      const dropdown = document.getElementById("dropdown");
+      const inputBox = document.getElementById("input-box");
+      const sendButton = document.getElementById("send-button");
+      const buttonOnly = document.getElementById("button-only");
 
-  <script>
-    const chatWindow = document.getElementById('chat-window');
-    const dropdown = document.getElementById('dropdown');
-    const inputBox = document.getElementById('input-box');
-    const sendButton = document.getElementById('send-button');
-    const buttonOnly = document.getElementById('button-only');
-
-    function addMessage(role, text) {
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `message ${role === 'user' ? 'text-right' : 'text-left'}`;
-      messageDiv.innerHTML = `
-        <div class="inline-block px-4 py-2 rounded-lg ${role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-300'}">
+      function addMessage(role, text) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${
+          role === "user" ? "text-right" : "text-left"
+        }`;
+        messageDiv.innerHTML = `
+        <div class="inline-block px-4 py-2 rounded-lg ${
+          role === "user" ? "bg-blue-5000 text-white" : "bg-gray-3000"
+        }">
           ${text}
         </div>
       `;
-      chatWindow.appendChild(messageDiv);
-      chatWindow.scrollTop = chatWindow.scrollHeight;
-    }
+        chatWindow.appendChild(messageDiv);
 
-    async function callApi() {
-    const apiUrl = 'http://127.0.0.1:8000/getRandomQuestion';
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          chatWindow.scrollTop = chatWindow.scrollHeight;
+        }, 100);
+      }
+
+      async function callApi() {
+        const apiUrl = "http://127.0.0.1:8000/getRandomQuestion";
+        try {
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          return await response.json();
+        } catch (error) {
+          console.error("Error calling API:", error);
+          return { error: "Failed to fetch result" };
+        }
+      }
+
+      async function callApiforDataset(params) {
+        const apiUrl = `http://127.0.0.1:8000/search?datasetName=${params.option}&questionIndex=${params.message}`;
+        try {
+          const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          return await response.json();
+        } catch (error) {
+          console.error("Error calling API:", error);
+          return { error: "Failed to fetch result" };
+        }
+      }
+
+      sendButton.addEventListener("click", async () => {
+        const dropdownValue = dropdown.value;
+        const inputValue = parseInt(inputBox.value);
+
+        if (!inputValue) return;
+
+        addMessage(
+          "user",
+          `<b>Selected Dataset:</b> ${
+            dropdown.options[dropdown.selectedIndex].text
+          } <br> <b>Question index:</b> ${inputValue}`
+        );
+        inputBox.value = "";
+
+        const apiResponse = await callApiforDataset({
+          option: dropdownValue,
+          message: inputValue - 1,
         });
-        
-        const result = await response.json();
-        return result;
-    } catch (error) {
-        console.error('Error calling API:', error);
-        return { error: 'Failed to fetch result' };
-    }
-}
+        const messageToPass = `<b>Question:</b> ${apiResponse.question} <br><b>Answer from RAG:</b> ${apiResponse.answer} <br><b>Original answer from dataset:</b> ${apiResponse.orginalanswer}`;
+        addMessage("bot", messageToPass || apiResponse.error);
+      });
 
-async function callApiforDataset(params) {
-    const apiUrl = 'http://127.0.0.1:8000/search?datasetName='+params.option+'&questionIndex='+params.message;
-    
-
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const result = await response.json();
-        return result;
-    } catch (error) {
-        console.error('Error calling API:', error);
-        return { error: 'Failed to fetch result' };
-    }
-}
-
-    sendButton.addEventListener('click', async () => {
-      const dropdownValue = dropdown.value;
-      const inputValue = inputBox.value;
-
-      if (!inputValue.trim()) return;
-
-      addMessage('user', "<b>Selected Dataset :</b>"+dropdownValue+" <br> <b>Question index is: </b>"+inputValue );
-      inputBox.value = '';
-
-      const apiResponse = await callApiforDataset({ option: dropdownValue, message: inputValue });
-      const messageToPass =  "<b>Question in index is: </b>"+apiResponse.question+ "<br><b> Answer from RAG:</b> "+apiResponse.answer + " <br> <b>Original answer from dataset:</b> "+apiResponse.orginalanswer;
-      addMessage('bot',  messageToPass || apiResponse.error);
-    });
-
-    buttonOnly.addEventListener('click', async () => {
-      addMessage('user', 'Randomly Pick a Question');
-
-      const apiResponse = await callApi({ action: 'button-only' });
-      const messageToPass = "<b>Picked Question is from the dataset :</b>"+apiResponse.datasetName+" <br><b> Question is: </b>"+apiResponse.question + " <br> <b>Answer from RAG:</b> "+apiResponse.answer + " <br> <b>Original answer from dataset: </b>"+apiResponse.orginalanswer;
-      addMessage('bot',  messageToPass || apiResponse.error);
-    });
-  </script>
-</body>
+      buttonOnly.addEventListener("click", async () => {
+        addMessage("user", "Randomly Pick a Question");
+        const apiResponse = await callApi();
+        const messageToPass = `<b>Picked Question from dataset ${apiResponse.datasetName} at index ${apiResponse.questionIndex}:</b> <br><b>Question:</b> ${apiResponse.question} <br><b>Answer from RAG:</b> ${apiResponse.answer} <br><b>Original answer from dataset:</b> ${apiResponse.orginalanswer}`;
+        addMessage("bot", messageToPass || apiResponse.error);
+      });
+    </script>
+  </body>
 </html>
