@@ -3,13 +3,12 @@ import os
 from fastapi import Response
 from datetime import date
 import json
-from ragbench_all_dataset_with_groq_final import *  
+from ragbench_all_dataset import *  
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 
 # Create an instance of FastAPI
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,9 +18,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-
-def writetocsv(original_values, generated_values,metrics,dataset_name):
-
+def writetocsv(original_values, generated_values, metrics, dataset_name):
     # Prepare the row with dataset name, generated values, and original values
     row = {
         'Dataset Name': dataset_name,
@@ -63,89 +60,41 @@ def writetocsv(original_values, generated_values,metrics,dataset_name):
 
     print(f"Data appended to {csv_file}")
 
-# Define a route
-@app.get("/search")
-def search(datasetName:str="hagrid",questionIndex:int=2):
-  
-    #datasetName,questionIndex = getRandomeQuestion(datasetList)
-    # datasetName = "hagrid"
-    # questionIndex = 1
-    #questionIndex = 270
-    #questionIndex = 1303
+def process_question(datasetName: str, questionIndex: int) -> tuple:
+    """Helper function to process a question and generate response"""
     question = ragbench_all[datasetName]['train'][questionIndex]['question']
-    orgAnswer = ragbench_all[datasetName]['train'][questionIndex]['response']
-    orgDocuents = ragbench_all[datasetName]['train'][questionIndex]['documents']
-    print("Question: ",question)
-    print("Original Answer: ",orgAnswer)
-    #print("Original Documents: ",orgDocuents)
+    org_answer = ragbench_all[datasetName]['train'][questionIndex]['response']
     
-
-    #print("Question: ",question)
     top_k = 5
-    responseObj,sentence_counter = getResponseForQuestion(datasetName,questionIndex,top_k)
-    #print answer from the responseObj
-    answer = responseObj["answer"]
+    response_obj, sentence_counter = getResponseForQuestion(datasetName, questionIndex, top_k)
     
-    print("Generated Answer: ",answer)
-    generated_values = getGeneratedvalues(sentence_counter,responseObj)
-    original_values = getOriginalvalues(datasetName,questionIndex)
-
+    generated_values = getGeneratedvalues(sentence_counter, response_obj)
+    original_values = getOriginalvalues(datasetName, questionIndex)
+    metrics = compute_metrics(original_values, generated_values)
     
-    # print values from generated_values object
-    print("Generated Context Relevance: ",generated_values["Context Relevance"])
-    print("Original Context Relevance: ",original_values["Context Relevance"])
+    # Update response object
+    response_obj.update({
+        "datasetName": datasetName,
+        "question": question,
+        "orginalanswer": org_answer,
+        "generated_context_relevance": generated_values,
+        "original_context_relevance": original_values
+    })
     
-    # current_directory = os.getcwd()
-    # print("Current Working Directory:", current_directory)
-    #return {"message": "Hello from FastAPI!"+current_directory}
-    responseObj["datasetName"] = datasetName
-    responseObj["question"] = question
-    responseObj["orginalanswer"] = orgAnswer
+    writetocsv(original_values, generated_values, metrics, datasetName)
+    return response_obj
 
-    
-    metrics = compute_metrics(original_values,generated_values)
-    writetocsv(original_values,generated_values,metrics, datasetName)
-    responseObj["generated_context_relevance"] = generated_values
-    responseObj["original_context_relevance"] = original_values
+@app.get("/search")
+def search(datasetName: str = "hagrid", questionIndex: int = 2):
+    response_obj = process_question(datasetName, questionIndex)
+    return Response(content=json.dumps(response_obj, indent=4, default=str), 
+                   media_type='application/json')
 
-    json_str = json.dumps(responseObj, indent=4, default=str)
-    return Response(content=json_str, media_type='application/json')
-     
-
-# Define a route
 @app.get("/getRandomQuestion")
 def getRandomQuestion():
-  
-    datasetName,questionIndex = getRandomeQuestion(datasetList)
-    question = ragbench_all[datasetName]['train'][questionIndex]['question']
-    orgAnswer = ragbench_all[datasetName]['train'][questionIndex]['response']
-    orgDocuents = ragbench_all[datasetName]['train'][questionIndex]['documents']
-    print("Question: ",question)
-    print("Original Answer: ",orgAnswer)
-    
-    top_k = 5
-    responseObj,sentence_counter = getResponseForQuestion(datasetName,questionIndex,top_k)
-    #print answer from the responseObj
-    answer = responseObj["answer"]
-    print("Generated Answer: ",answer)
-    generated_values = getGeneratedvalues(sentence_counter,responseObj)
-    original_values = getOriginalvalues(datasetName,questionIndex)
-    # print values from generated_values object
-    print("Generated Context Relevance: ",generated_values["Context Relevance"])
-    print("Original Context Relevance: ",original_values["Context Relevance"])
-    
-    responseObj["datasetName"] = datasetName
+    datasetName, questionIndex = getRandomeQuestion(datasetList)
+    response_obj = process_question(datasetName, questionIndex)
+    response_obj["questionIndex"] = questionIndex
+    return Response(content=json.dumps(response_obj, indent=4, default=str), 
+                   media_type='application/json')
 
-    metrics = compute_metrics(original_values,generated_values)
-    writetocsv(original_values,generated_values,metrics, datasetName)
-
-    responseObj["question"] = question
-
-    responseObj["generated_context_relevance"] = generated_values
-    responseObj["original_context_relevance"] = original_values
-    responseObj["orginalanswer"] = orgAnswer
-    responseObj["questionIndex"] = questionIndex
-
-    json_str = json.dumps(responseObj, indent=4, default=str)
-    return Response(content=json_str, media_type='application/json')
-     
